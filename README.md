@@ -5,4 +5,4 @@ To build an optimization model that guide our manpower (call agents) allocation 
 
 ### Python Libraries used
 1. Streamlit
-2. Ortool
+2. pywraplp(Linear_solver) - Used for Linear Optimization
