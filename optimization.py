@@ -13,7 +13,7 @@ import math
 
 
 st.write("""
-### INVOKE CALL ANALYST OPTIMIZATION MODEL (CAP MODEL)
+### CALL ANALYST OPTIMIZATION MODEL (CAP MODEL)
 
 #### Description
 An optimization model that will guide our call analyst allocation for survey works in order to complete all survey projects in a timely manner.
