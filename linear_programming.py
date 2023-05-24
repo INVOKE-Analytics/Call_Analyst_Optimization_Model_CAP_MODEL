@@ -1,7 +1,5 @@
 from ortools.linear_solver import pywraplp
 import math
-from ast import Num
-
 
 def round_decimals_up(number:float, decimals:int=0):
     """
@@ -26,9 +24,9 @@ def linearoptimizer(df, Number_running_survey, ManPower):
         #Decision Variables X0, X1, X2, ... --> Depending on number of surveys
         globals()['X%s' % i] = solver.IntVar(0.0,infinity,'X'+str(i))
         DecisionVariable.append(globals()['X%s' % i])
-        #Constraints 1: X * CR/day/agent >= Target CR/day
+        #Constraint 1: X * CR/day/agent >= Target CR/day
         solver.Add(globals()['X%s' % i] * df.iloc[i, 1] >= df.iloc[i, 4])
-    #Constraints 2: X1 + X2 + ... <= ManPower
+    #Constraint 2: X1 + X2 + ... <= ManPower
     solver.Add(sum(DecisionVariable) == ManPower)
 
     #Objective 
