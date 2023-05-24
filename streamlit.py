@@ -1,11 +1,5 @@
-# from ast import Num
-#from ctypes import alignment
-#from timeit import repeat
-#import tkinter
-#from tkinter import CENTER, Variable, font
-# from ortools.linear_solver import pywraplp
-#import datetime
-#from datetime import datetime
+from ast import Num
+from ortools.linear_solver import pywraplp
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -27,38 +21,19 @@ today = st.sidebar.date_input("Today's date")
 st.sidebar.write("""***
 ## STEP 2: Survey input details""")
 
-# def round_decimals_up(number:float, decimals:int=0):
-#     """
-#     Returns a value rounded up to a specific number of decimal places.
-#     """
-#     if not isinstance(decimals, int):
-#         raise TypeError("decimal places must be an integer")
-#     elif decimals < 0:
-#         raise ValueError("decimal places has to be 0 or more")
-#     elif decimals == 0:
-#         return math.ceil(number)
-
-#     factor = 10 ** decimals
-#     return math.ceil(number * factor) / factor
-
 def Survey_input_details():
-    #Number_running_survey = st.slider('How many surveys will be conducted today?', 1,10,5)
-    #ManPower = st.slider('How many call agents we have?', 1,40,20)
-    i = 1
     Names = []
     CRs = []
     NoCallReqs = []
     NoDaysRemains = []
     MinCalls = []
-    PlannedCalls = []
     ManpowerAllocateds = []
-    while i <= Number_running_survey:
+    for i in range(Number_running_survey):
         st.sidebar.write('#### Please enter survey details as below:')
         Name = st.sidebar.text_input(str(i)+'. Survey name ')
         CR = st.sidebar.slider(str(i)+'. Avg Daily CR/agent ', 1,50,10)
         NoCallReq = st.sidebar.number_input(str(i)+'. Remaining CR ', 1,10000)
         DueDate = st.sidebar.date_input(str(i)+". Target Completion Date",)
-        #NoDaysRemain = st.sidebar.number_input(str(i)+'. Days Remaining ', 1,365)
         PlannedCall = int()
         ManpowerAllocated = int()
         Names.append(Name)
@@ -74,7 +49,7 @@ def Survey_input_details():
             MinCalls.append(MinCall)      
         ManpowerAllocateds.append(ManpowerAllocated)
         st.sidebar.write('***')
-        i = i+1
+        #i = i+1
     data = {'Survey Title':Names,
             'Avg Daily CR/agent':CRs,
             'Remaining CR':NoCallReqs,
@@ -85,51 +60,32 @@ def Survey_input_details():
     dataframe = pd.DataFrame.from_dict(data)
     return dataframe
 
-df = Survey_input_details()
-#st.write("""
-#### Surveys Summary""")
+# Get Input from user
+try:
+    df = Survey_input_details()
+except Exception as e1:
+    st.error(f"e1: {e1}") 
 
-# solver = pywraplp.Solver.CreateSolver('SCIP')
-
-# #Decision Variables
-# # X1, X2 and X3 are integer non-negative variables
-
-# infinity = solver.infinity()
-
-# i=0
-# DecisionVariable = []
-# while i < Number_running_survey:
-#     #Decision Variables
-#     globals()['X%s' % i] = solver.IntVar(0.0,infinity,'X'+str(i))
-#     DecisionVariable.append(globals()['X%s' % i])
-#     #Constraints 1
-#     solver.Add(globals()['X%s' % i] * df.iloc[i, 1] >= df.iloc[i, 4])
-#     i=i+1
-# #Constraints 2
-# solver.Add(sum(DecisionVariable) <= ManPower)
-
-# #Objective
-# q=0
-# Maxs = []
-# for w in DecisionVariable:
-#     globals()['Max%s' % i] = w * df.iloc[q, 1]
-#     Maxs.append(globals()['Max%s' % i])
-#     q=q+1
-# solver.Maximize(sum(Maxs))
-status = linearoptimizer(df, Number_running_survey, ManPower)
+# Calculate Mixed Integer Linear Programming
+try:
+    results, SolutionValues = linearoptimizer(df, Number_running_survey, ManPower)
+except Exception as e2:
+    st.error(f"e2: {e2}") 
 
 def left_align(s, props='text-align: center;'):
     return props
 
 # View result
 if df.iloc[0,0] != '':
-    if status == pywraplp.Solver.OPTIMAL:
+    if results == pywraplp.Solver.OPTIMAL:
         st.write("""
         #### Surveys Summary""")
         y=0
         while y < Number_running_survey:
-            df.iloc[y,5] = globals()['X%s' % y].solution_value()
-            df.iloc[y,6] = globals()['X%s' % y].solution_value() * df.iloc[y,1]
+            # df.iloc[y,5] = globals()['X%s' % y].solution_value()
+            # df.iloc[y,6] = globals()['X%s' % y].solution_value() * df.iloc[y,1]
+            df.iloc[y,5] = SolutionValues[y]
+            df.iloc[y,6] = SolutionValues[y] * df.iloc[y,1]
             y=y+1
         st.write('The algorithm found the optimal call analysts allocation to maximize the total plan CR/day & meet the surveys target completion date.')
         st.table(df)

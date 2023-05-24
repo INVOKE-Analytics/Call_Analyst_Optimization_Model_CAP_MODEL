@@ -1,5 +1,6 @@
 from ortools.linear_solver import pywraplp
 import math
+from ast import Num
 
 
 def round_decimals_up(number:float, decimals:int=0):
@@ -18,25 +19,19 @@ def round_decimals_up(number:float, decimals:int=0):
 
 def linearoptimizer(df, Number_running_survey, ManPower):
     solver = pywraplp.Solver.CreateSolver('SCIP')
-
-    #Decision Variables
-    # X1, X2 and X3 are integer non-negative variables
-
     infinity = solver.infinity()
-
     i=0
     DecisionVariable = []
-    while i < Number_running_survey:
-        #Decision Variables
+    for i in range(Number_running_survey):
+        #Decision Variables X0, X1, X2, ... --> Depending on number of surveys
         globals()['X%s' % i] = solver.IntVar(0.0,infinity,'X'+str(i))
         DecisionVariable.append(globals()['X%s' % i])
-        #Constraints 1
+        #Constraints 1: X * CR/day/agent >= Target CR/day
         solver.Add(globals()['X%s' % i] * df.iloc[i, 1] >= df.iloc[i, 4])
-        i=i+1
-    #Constraints 2
-    solver.Add(sum(DecisionVariable) <= ManPower)
+    #Constraints 2: X1 + X2 + ... <= ManPower
+    solver.Add(sum(DecisionVariable) == ManPower)
 
-    #Objective
+    #Objective 
     q=0
     Maxs = []
     for w in DecisionVariable:
@@ -44,4 +39,5 @@ def linearoptimizer(df, Number_running_survey, ManPower):
         Maxs.append(globals()['Max%s' % i])
         q=q+1
     solver.Maximize(sum(Maxs))
-    return solver.Solve()
+
+    return solver.Solve(), [globals()['X%s' % i].solution_value() for i in range(Number_running_survey)]
