@@ -12,10 +12,10 @@ To build an optimization model that guide our manpower (call agents) allocation 
 
 ### Future work
 1. Each jobs have it own dateline, to re-visit the solution approach to relocate the manpower once any of the job's dateline has completed.
-2. To formulate a mitigation action if the model unable to find an optimal solution. \n
-   i.  To declare dateline as another manipulative vars. \n
-       Remark: Problem with more than 1 manipulative vars can be a non-linear programming \n
-   ii. [Constraint Programming](https://developers.google.com/optimization/cp)\n
+2. To formulate a mitigation action if the model unable to find an optimal solution.<br />
+   i.  To declare dateline as another manipulative vars.<br />
+       Remark: Problem with more than 1 manipulative vars can be a non-linear programming<br />
+   ii. [Constraint Programming](https://developers.google.com/optimization/cp)<br />
        CP is based on feasibility (finding a feasible solution) rather than optimization (finding an optimal solution) and focuses on the constraints and variables rather than the objective function. The goal may simply be to narrow down a very large set of possible solutions to a more manageable subset by adding constraints to the problem.
 
 ### Data Driven Web-based apps application using Streamlit
