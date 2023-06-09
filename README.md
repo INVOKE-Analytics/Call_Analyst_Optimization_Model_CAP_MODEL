@@ -10,6 +10,9 @@ To build an optimization model that guide our manpower (call agents) allocation 
 1. [Streamlit](https://docs.streamlit.io/) - Data Driven Web-based apps
 2. [Google OR-Tools](https://developers.google.com/optimization/introduction) - Linear Optimization
 
+## LP Solver
+[SCIP](https://www.scipopt.org/)
+
 ### Future work
 1. Each jobs have it own dateline, to re-visit the solution approach to relocate the manpower once any of the job's dateline has completed.
 2. To formulate a mitigation action if the model unable to find an optimal solution.<br />
@@ -22,7 +25,7 @@ To build an optimization model that guide our manpower (call agents) allocation 
 [Streamlit Apps](https://invoke-analytics-call-analyst-optimization-mod-streamlit-q2rqkk.streamlit.app/)
 
 ### Resources
-1. 
-2. [linear programming python](https://realpython.com/linear-programming-python/#linear-programming-solvers)
-3. [Introduction to Linear Programming in Python](https://mlabonne.github.io/blog/posts/2022-03-02-linear_programming.html#v.-optimize)
-4. [4 Ways to Solve Linear Programming in Python](https://medium.com/@chongjingting/4-ways-to-solve-linear-programming-in-python-b4af36b7894d)
+1. [linear programming python](https://realpython.com/linear-programming-python/#linear-programming-solvers)
+2. [Introduction to Linear Programming in Python](https://mlabonne.github.io/blog/posts/2022-03-02-linear_programming.html#v.-optimize)
+3. [4 Ways to Solve Linear Programming in Python](https://medium.com/@chongjingting/4-ways-to-solve-linear-programming-in-python-b4af36b7894d)
+4. [Constraint Programming](https://developers.google.com/optimization/cp)
