@@ -1,11 +1,12 @@
-from math import ceil
 from itertools import repeat
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 from ortools.linear_solver import pywraplp
-from linear_programming import round_decimals_up, linearoptimizer
+from utils.linear_programming import round_decimals_up, linearoptimizer
+from utils.utils import create_table
+
 
 st.write('''
 ### CALL ANALYST OPTIMIZATION MODEL (CAP MODEL)
@@ -70,50 +71,51 @@ def Survey_input_details():
 
 
 def View_results():
-    if df.iloc[0,0] != '':
-        if results == pywraplp.Solver.OPTIMAL:
-            st.write('''#### Surveys Summary''')
-
-            for y in range(Number_running_survey):
-                df.iloc[y,5] = SolutionValues[y]
-                df.iloc[y,6] = SolutionValues[y] * df.iloc[y,1]
-
-            st.write('The algorithm found the optimal call analysts allocation to maximize the total plan CR/day & meet the surveys target completion date.')
-            st.table(df)
-            st.write('##### Target vs Plan CR/day')
-            columns = [*st.columns(Number_running_survey)]
-
-            for i in range(Number_running_survey):
-                try:
-                    columns[i].write(df.iloc[i, 0])
-                    columns[i].metric(label='Target CR/day', value=df.iloc[i, 4], help=None)
-                    columns[i].metric(label='Plan CR/day', value=df.iloc[i, 6], delta=int(df.iloc[i, 6]-df.iloc[i, 4]), delta_color='normal', help=None)
-
-                except Exception as e:
-                    pass
-
-            st.write('\n')
-            st.write('##### Remark')
-            st.write('The optimization only to make sure all surveys can be completed exactly on the target completion date with maximum number of total plan CR / day.\nIf the different between **plan CR / day** and **target CR / day** are skewed toward any of surveys, you can make adjustment by tuning the **Target Completion Date** of each surveys.')
-
-        else:
-            st.write('''
-            ##### Surveys Summary''')
-            for y in range(Number_running_survey):
-                df.iloc[y,5] = 'Infeasible'
-                df.iloc[y,6] = 'Infeasible'
-
-            st.write('\n')
-            st.write('The algorithm terminated successfully and determined that the problem is infeasible.')
-            st.table(df)
-            st.write('\n')
-            st.write('##### Remark')
-            st.write('The algorithm unable to find the optimal call agents allocation to meet the surveys dateline.\nTo re-evaluate the opmitization, You may replan by:\n1. extending the surveys **target completion date**.\n2. Increasing the **total number of call agents**.')
-
-    else:
+    if df.iloc[0, 0] == '':
         st.write('\n')
         st.write('Please fill in the required information')
         st.write('\n')
+        return None
+
+    if results == pywraplp.Solver.OPTIMAL:
+        st.write('''#### Surveys Summary''')
+
+        for y in range(Number_running_survey):
+            df.iloc[y,5] = SolutionValues[y]
+            df.iloc[y,6] = SolutionValues[y] * df.iloc[y,1]
+
+        st.write('The algorithm found the optimal call analysts allocation to maximize the total plan CR/day & meet the surveys target completion date.')
+        st.table(df)
+        st.write('##### Target vs Plan CR/day')
+        columns = [*st.columns(Number_running_survey)]
+
+        for i in range(Number_running_survey):
+            try:
+                columns[i].write(df.iloc[i, 0])
+                columns[i].metric(label='Target CR/day', value=df.iloc[i, 4], help=None)
+                columns[i].metric(label='Plan CR/day', value=df.iloc[i, 6], delta=int(df.iloc[i, 6]-df.iloc[i, 4]), delta_color='normal', help=None)
+
+            except Exception as e:
+                pass
+
+        st.write('\n')
+        st.write('##### Remark')
+        st.write('The optimization only to make sure all surveys can be completed exactly on the target completion date with maximum number of total plan CR / day.\nIf the different between **plan CR / day** and **target CR / day** are skewed toward any of surveys, you can make adjustment by tuning the **Target Completion Date** of each surveys.')
+
+    else:
+        st.write('''
+        ##### Surveys Summary''')
+        for y in range(Number_running_survey):
+            df.iloc[y,5] = 'Infeasible'
+            df.iloc[y,6] = 'Infeasible'
+
+        st.write('\n')
+        st.write('The algorithm terminated successfully and determined that the problem is infeasible.')
+        st.table(df)
+        st.write('\n')
+        st.write('##### Remark')
+        st.write('The algorithm unable to find the optimal call agents allocation to meet the surveys dateline.\nTo re-evaluate the opmitization, You may replan by:\n1. extending the surveys **target completion date**.\n2. Increasing the **total number of call agents**.')
+
 
 # Get Input from user
 try:
@@ -127,29 +129,6 @@ try:
 except Exception as e2:
     st.error(f'e2: {e2}') 
 
-def left_align(s, props='text-align: center;'):
-    return props
-
-def create_table(surveys: list, rates: list, to_df=False):
-    # using the c,s,e formulation for surveys with d = e - s + 1
-    n = len(surveys)
-    m = max([e for c,s,e in surveys])
-    table = np.zeros(shape=(n,m))
-    data = zip(surveys, rates)
-
-    for idx, ((c, s, e), r) in enumerate(data):
-        d = max(1, e-s)
-        agents = ceil(c/(r*d))
-        table[idx][s:e] = agents
-
-    if to_df:
-        table = np.vstack((table, table.sum(axis=0)))
-        table = pd.DataFrame(table, columns=[f'Day {i}' for i in range(1, m+1)]).astype(int)
-        table.insert(loc=0, column='Surveys', value=[f'{df["Survey Title"].values[0]}' for i in range(1, n+1)]+['Required Call Agents'])
-        table.set_index('Surveys', inplace=True)
-        return table
-    else:
-        return table
 
 # View result
 try:
@@ -157,11 +136,19 @@ try:
     surveys = list(zip(df['Remaining CR'], repeat(0), df['Remaining Working Days']))
     rates = df['Avg Daily CR/agent']
 
-    schedule = create_table(surveys=surveys, rates=df['Avg Daily CR/agent'], to_df=True)
-    delta_agents = np.ceil(df['Remaining CR'] / (df['Avg Daily CR/agent'] * df['Remaining Working Days'].clip(1, None))) - np.ceil(df['Remaining CR'] / (df['Avg Daily CR/agent'] * (df['Remaining Working Days'] + 1)))
+    schedule = create_table(
+        surveys=surveys,
+        rates=df['Avg Daily CR/agent'],
+        survey_title=df["Survey Title"].values,
+        to_df=True
+    )
+    schedule = schedule.replace(0, '-')
+    delta_agents = np.ceil(df['Remaining CR'] / (df['Avg Daily CR/agent'] * df['Remaining Working Days'].clip(1, None)))
+    delta_agents = delta_agents - np.ceil(df['Remaining CR'] / (df['Avg Daily CR/agent'] * (df['Remaining Working Days'] + 1)))
     st.write('#### Minimum Agent Requirements')
     st.write('')
     st.table(schedule)
+    st.write(delta_agents)
 
 except Exception as e3:
     raise e3
