@@ -70,88 +70,16 @@ def View_results():
             st.write('The algorithm found the optimal call analysts allocation to maximize the total plan CR/day & meet the surveys target completion date.')
             st.table(df)
             st.write('##### Target vs Plan CR/day')
-            if Number_running_survey == 1:
-                col0 = st.columns(1)
-            elif Number_running_survey == 2:
-                col0,col1 = st.columns(2)
-            elif Number_running_survey == 3:
-                col0,col1,col2 = st.columns(3)
-            elif Number_running_survey == 4:
-                col0,col1,col2,col3 = st.columns(4)
-            elif Number_running_survey == 5:
-                col0,col1,col2,col3,col4 = st.columns(5)
-            elif Number_running_survey == 6:
-                col0,col1,col2,col3,col4,col5 = st.columns(6)
-            elif Number_running_survey == 7:
-                col0,col1,col2,col3,col4,col5,col6 = st.columns(7)
-            elif Number_running_survey == 8:
-                col0,col1,col2,col3,col4,col5,col6,col7 = st.columns(8)
-            elif Number_running_survey == 9:
-                col0,col1,col2,col3,col4,col5,col6,col7,col8 = st.columns(9)
-            else:
-                col0,col1,col2,col3,col4,col5,col6,col7,col8,col9 = st.columns(10)
-            
-            try:
-                col0.write(df.iloc[0,0])
-                col0.metric(label='Target CR/day', value= df.iloc[0,4], help=None)
-                col0.metric(label='Plan CR/day', value= df.iloc[0,6], delta=int(df.iloc[0,6]-df.iloc[0,4]), delta_color="normal", help=None)
+            columns = [*st.columns(Number_running_survey)]
 
-            except Exception:
-                pass
-            try:
-                col1.write(df.iloc[1,0])
-                col1.metric(label='Target CR/day', value= df.iloc[1,4], help=None)
-                col1.metric(label='Plan CR/day', value= df.iloc[1,6], delta=int(df.iloc[1,6]-df.iloc[1,4]), delta_color="normal", help=None)
-            except Exception:
-                pass  
-            try:
-                col2.write(df.iloc[2,0])
-                col2.metric(label='Target CR/day', value= df.iloc[2,4], help=None)
-                col2.metric(label='Plan CR/day', value= df.iloc[2,6], delta=int(df.iloc[2,6]-df.iloc[2,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col3.write(df.iloc[3,0])
-                col3.metric(label='Target CR/day', value= df.iloc[3,4], help=None)
-                col3.metric(label='Plan CR/day', value= df.iloc[3,6], delta=int(df.iloc[3,6]-df.iloc[3,4]), delta_color="normal", help=None)
-            except Exception:
-                pass 
-            try:
-                col4.write(df.iloc[4,0])
-                col4.metric(label='Target CR/day', value= df.iloc[4,4], help=None)
-                col4.metric(label='Plan CR/day', value= df.iloc[4,6], delta=int(df.iloc[4,6]-df.iloc[4,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col5.write(df.iloc[5,0])
-                col5.metric(label='Target CR/day', value= df.iloc[5,4], help=None)
-                col5.metric(label='Plan CR/day', value= df.iloc[5,6], delta=int(df.iloc[5,6]-df.iloc[5,4]), delta_color="normal", help=None)
-            except Exception:
-                pass 
-            try:
-                col6.write(df.iloc[6,0])
-                col6.metric(label='Target CR/day', value= df.iloc[6,4], help=None)
-                col6.metric(label='Plan CR/day', value= df.iloc[6,6], delta=int(df.iloc[6,6]-df.iloc[6,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col7.write(df.iloc[7,0])
-                col7.metric(label='Target CR/day', value= df.iloc[7,4], help=None)
-                col7.metric(label='Plan CR/day', value= df.iloc[7,6], delta=int(df.iloc[7,6]-df.iloc[7,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col8.write(df.iloc[8,0])
-                col8.metric(label='Target CR/day', value= df.iloc[8,4], help=None)
-                col8.metric(label='Plan CR/day', value= df.iloc[8,6], delta=int(df.iloc[8,6]-df.iloc[8,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col9.write(df.iloc[9,0])
-                col9.metric(label='Target CR/day', value= df.iloc[9,4], help=None)
-                col9.metric(label='Plan CR/day', value= df.iloc[9,6], delta=int(df.iloc[9,6]-df.iloc[9,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
+            for i in range(10):
+                try:
+                    columns[i].write(df.iloc[i, 0])
+                    columns[i].metric(label='Target CR/day', value=df.iloc[i, 4], help=None)
+                    columns[i].metric(label='Plan CR/day', value=df.iloc[i, 6], delta=int(df.iloc[i, 6]-df.iloc[i, 4]), delta_color='normal', help=None)
+                except Exception:
+                    pass
+
             st.write('\n')
             st.write('##### Remark')
             st.write('The optimization only to make sure all surveys can be completed exactly on the target completion date with maximum number of total plan CR / day.\nIf the different between **plan CR / day** and **target CR / day** are skewed toward any of surveys, you can make adjustment by tuning the **Target Completion Date** of each surveys.')
@@ -187,8 +115,39 @@ except Exception as e2:
 def left_align(s, props='text-align: center;'):
     return props
 
+def create_table(surveys: list, rates: list, to_df=False):
+    # using the c,s,e formulation for surveys with d = e - s + 1
+    n = len(surveys)
+    m = max([e for c,s,e in surveys])
+    table = np.zeros(shape=(n,m))
+    data = zip(surveys, rates)
+
+    for idx, ((c, s, e), r) in enumerate(data):
+        d = max(1, e-s)
+        agents = ceil(c/(r*d))
+        table[idx][s:e] = agents
+
+    if to_df:
+        table = np.vstack((table, table.sum(axis=0)))
+        table = pd.DataFrame(table, columns=[f"Day {i}" for i in range(1, m+1)]).astype(int)
+        table.insert(loc=0, column="Surveys", value=[f"Survey {i}" for i in range(1, n+1)]+["Required Call Agents"])
+        table.set_index("Surveys", inplace=True)
+        return table
+    else:
+        return table
+
+from math import ceil
+from itertools import repeat
 # View result
 try:
     veiw = View_results()
+    surveys = list(zip(df["Remaining CR"], repeat(0), df["Remaining Working Days"]))
+    rates = df["Avg Daily CR/agent"]
+
+    schedule = create_table(surveys=surveys, rates=df["Avg Daily CR/agent"], to_df=True)
+    delta_agents = np.ceil(df["Remaining CR"] / (df["Avg Daily CR/agent"] * df["Remaining Working Days"].clip(1, None))) - np.ceil(df["Remaining CR"] / (df["Avg Daily CR/agent"] * (df["Remaining Working Days"] + 1)))
+    st.table(schedule)
+
 except Exception as e3:
-    st.error(f"e3: {e3}") 
+    raise e3
+    st.error(f"e3: {e3}")
