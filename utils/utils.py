@@ -5,8 +5,16 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-def create_table(surveys: list, rates: list, survey_title: list) -> pd.DataFrame:
-    # using the c,s,e formulation for surveys with d = e - s + 1
+def create_table(
+    surveys: list,
+    rates: list,
+    survey_title: list) -> pd.DataFrame:
+    '''
+    Surveys are a list of tuples (c, s, e)
+     - c is the total number of remaining CR
+     - s is the start date of the survey
+     - e is the end date of the survey
+    '''
     n = len(surveys)
     m = max([e for c,s,e in surveys])
     table = np.zeros(shape=(n, m))
@@ -19,48 +27,116 @@ def create_table(surveys: list, rates: list, survey_title: list) -> pd.DataFrame
         table[idx][s:e] = agents
 
     survey_names = [*survey_title, 'Required Agents']
-    table = np.vstack((table, table.sum(axis=0))).astype(int)
-    table = pd.DataFrame(table, columns=dates).astype(str)
-    table.insert(loc=0, column='Surveys', value=survey_names)
-    table.set_index('Surveys', inplace=True)
+    table = np.vstack(
+        (table, table.sum(axis=0))
+    ).astype(int)
+
+    table = pd.DataFrame(
+        table,
+        columns=dates
+    ).astype(str)
+
+    table.insert(
+        loc=0,
+        column='Surveys',
+        value=survey_names
+    )
+
+    table.set_index(
+        'Surveys',
+        inplace=True
+    )
+
     return table
 
-def view_alternative(df: pd.DataFrame, manpower: int, current_date: np.datetime64) -> None:
-    cr, rates = df['Remaining CR'], df['Avg Daily CR/agent']
-    days, title = df['Remaining Working Days'].clip(1, None), df['Survey Title'].tolist()
+def view_alternative(
+    df: pd.DataFrame,
+    manpower: int,
+    current_date: np.datetime64) -> None:
+
+    cr = df['Remaining CR']
+    rates = df['Avg Daily CR/agent']
+    days = df['Remaining Working Days'].clip(1, None)
+    title = df['Survey Title'].tolist()
+
     daily_agents = lambda c, r, d, x: np.ceil(c / (r * (d + x)))
     future_busday = lambda date, skip: str(np.busday_offset(date, skip, 'forward'))
 
-    complete_dates = [st.session_state.get(f'{i}_complete_date') for i in range(len(title))]
+    complete_dates = [
+        st.session_state.get(f'{i}_complete_date')
+        for i 
+        in range(len(title))
+    ]
+
     surveys = list(zip(cr, repeat(0), days))
-    schedule = create_table(surveys=surveys, rates=rates, survey_title=title)
+    schedule = create_table(
+        surveys=surveys,
+        rates=rates,
+        survey_title=title
+    )
     schedule = schedule.replace('0', '-')
-    schedule.columns = [future_busday(current_date, i) for i  in range(max(days))]
+    schedule.columns = [
+        future_busday(current_date, i)
+        for i 
+        in range(max(days))
+    ]
 
     st.write('#### Minimum Agent Requirements')
-    st.write('The table shows the minimum number of agents allocated to each survey for each working day over the duration of the survey.')
-    st.table(schedule)
+    st.write(
+        'The table shows the minimum number of agents '
+        'allocated to each survey for each working day '
+        'over the duration of the survey.'
+    )
+    st.dataframe(schedule)
 
-    understaffed_days = schedule.columns[schedule.loc['Required Agents'].astype(int) > manpower]
-    st.write('Manpower requirements are not met for days', understaffed_days[0], 'to', understaffed_days[1])
+    understaffed_days = schedule.columns[
+        schedule.loc['Required Agents'].astype(int) > manpower
+    ]
+
+    st.write(
+        'Manpower requirements are not met for days'
+        f'{understaffed_days[0]} to {understaffed_days[1]}'
+    )
     st.write('##### Extension')
 
-    st.write('The table shows the reduction in the number of call agents required to reduce the minimum number of call agents for a survey.')
-    extension = st.number_input('Maximum extension', min_value=0, max_value=180, value=10)
+    st.write(
+        'The table shows the reduction in the number of '
+        'call agents required to reduce the minimum number '
+        'of call agents for a survey.'
+    )
+    extension = st.number_input(
+        'Maximum extension',
+        min_value=0,
+        max_value=180,
+        value=10
+    )
 
-    extension_dates = {
-        title[j]: {
-            future_busday(complete_dates[j], i+1): daily_agents(cr, rates, days, i+1)[j]
-            for i in range(extension)
-            if daily_agents(cr, rates, days, i+1)[j] <= manpower - len(title) + 1
-        }
-        for j in range(len(title))
-    }
+    # Need to prettify this ugly dict comprehension further
+    extension_dates = dict()
+    for j in range(len(title)):
+        survey_dict = dict()
+
+        for i in range(extension):
+            num_agents = daily_agents(cr, rates, days, i+1)[j]
+
+            if num_agents <= manpower - len(title) + 1:
+                date = future_busday(complete_dates[j], i+1)
+                survey_dict[date] = num_agents
+
+        extension_dates[title[j]] = survey_dict
+
     for k,v in extension_dates.items():
         if bool(v):
-            st.table(pd.DataFrame(v, index=[k]).astype(int))
+            extension_df = pd.DataFrame(v, index=[k])
+            extension_df = (
+                extension_df
+                .astype(int)
+                .T
+                .drop_duplicates(keep='first')
+            )
+            st.dataframe(extension_df.T, use_container_width=False)
         else:
-            st.write('Survey', k, 'needs a larger extension.')
+            st.write(f'Survey {k} needs a larger extension.')
 
 
 def left_align(s, props='text-align: center;'):
