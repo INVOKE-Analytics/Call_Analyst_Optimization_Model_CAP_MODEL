@@ -1,11 +1,9 @@
-from itertools import repeat
-
 import numpy as np
 import pandas as pd
 import streamlit as st
 from ortools.linear_solver import pywraplp
 from utils.linear_programming import round_decimals_up, linearoptimizer
-from utils.utils import create_table
+from utils.utils import view_alternative
 
 
 st.write('''
@@ -20,7 +18,7 @@ An optimization model that will guide our call analyst allocation for survey wor
 st.sidebar.write('''## STEP 1: Input parameters''')
 Number_running_survey = st.sidebar.number_input('How many surveys will be conducted today? (Max: 10)', 1, 10)
 ManPower = st.sidebar.number_input('How many call agents we have? (Max: 100)', 1, 100)
-today = st.sidebar.date_input("Today's date")
+today = st.sidebar.date_input("Today's date", key="current_date")
 st.sidebar.write('''***
 ## STEP 2: Survey input details''')
 
@@ -38,7 +36,7 @@ def Survey_input_details():
         Name = st.sidebar.text_input(f'{i}. Survey name ')
         CR = st.sidebar.slider(f'{i}. Avg Daily CR/agent ', 1, 50, 10)
         NoCallReq = st.sidebar.number_input(f'{i}. Remaining CR ', 1, 10000)
-        DueDate = st.sidebar.date_input(f'{i}. Target Completion Date',)
+        DueDate = st.sidebar.date_input(f'{i}. Target Completion Date', value=np.busday_offset(today, 1, 'forward').tolist(), min_value=today, key=f'{i}_complete_date')
 
         # Somehow this enables the dataframe to deduce the datatype as int
         PlannedCall = int()
@@ -105,9 +103,7 @@ def View_results():
     else:
         st.write('''
         ##### Surveys Summary''')
-        for y in range(Number_running_survey):
-            df.iloc[y,5] = 'Infeasible'
-            df.iloc[y,6] = 'Infeasible'
+        df.iloc[:,[5, 6]] = 'Infeasible'
 
         st.write('\n')
         st.write('The algorithm terminated successfully and determined that the problem is infeasible.')
@@ -133,22 +129,8 @@ except Exception as e2:
 # View result
 try:
     veiw = View_results()
-    surveys = list(zip(df['Remaining CR'], repeat(0), df['Remaining Working Days']))
-    rates = df['Avg Daily CR/agent']
-
-    schedule = create_table(
-        surveys=surveys,
-        rates=df['Avg Daily CR/agent'],
-        survey_title=df["Survey Title"].values,
-        to_df=True
-    )
-    schedule = schedule.replace(0, '-')
-    delta_agents = np.ceil(df['Remaining CR'] / (df['Avg Daily CR/agent'] * df['Remaining Working Days'].clip(1, None)))
-    delta_agents = delta_agents - np.ceil(df['Remaining CR'] / (df['Avg Daily CR/agent'] * (df['Remaining Working Days'] + 1)))
-    st.write('#### Minimum Agent Requirements')
-    st.write('')
-    st.table(schedule)
-    st.write(delta_agents)
+    if df.iloc[0, 5] == 'Infeasible' and (df.iloc[:, 3] > 0).all():
+        view_alternative(df, ManPower, today)
 
 except Exception as e3:
     raise e3
