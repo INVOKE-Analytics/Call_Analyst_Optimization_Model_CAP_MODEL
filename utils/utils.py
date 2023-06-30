@@ -1,5 +1,5 @@
 from math import ceil
-from itertools import repeat
+from itertools import repeat, combinations
 
 import numpy as np
 import pandas as pd
@@ -93,10 +93,15 @@ def view_alternative(
         schedule.loc['Required Agents'].astype(int) > manpower
     ]
 
-    st.write(
-        'Manpower requirements are not met for days'
-        f'{understaffed_days[0]} to {understaffed_days[1]}'
-    )
+    understaffed_message = 'Manpower requirements are not met for '
+    if len(understaffed_days) == 1:
+        understaffed_message += f'the day {understaffed_days[0]}.'
+    elif len(understaffed_days) > 1:
+        understaffed_message += f'days {understaffed_days[0]} to {understaffed_days[-1]}.'
+    else:
+        understaffed_message = 'Manpower requirements met for all days.'
+
+    st.write(understaffed_message)
     st.write('##### Extension')
 
     st.write(
@@ -119,7 +124,8 @@ def view_alternative(
         for i in range(extension):
             num_agents = daily_agents(cr, rates, days, i+1)[j]
 
-            if num_agents <= manpower - len(title) + 1:
+            if (num_agents <= manpower - len(title) + 1
+                and num_agents != daily_agents(cr, rates, days, i)[j]):
                 date = future_busday(complete_dates[j], i+1)
                 survey_dict[date] = num_agents
 
