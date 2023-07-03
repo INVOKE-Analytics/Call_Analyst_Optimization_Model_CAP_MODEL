@@ -51,7 +51,7 @@ def create_table(
 
 def calculate_alternative(
     df: pd.DataFrame,
-    manpower: int,
+    ManPower: int,
     current_date: np.datetime64) -> None:
 
     cr = df['Remaining CR']
@@ -87,10 +87,11 @@ def calculate_alternative(
         'allocated to each survey for each working day '
         'over the duration of the survey.'
     )
+    st.write(f'##### Number of Available Call Agents: {ManPower}')
     st.dataframe(schedule)
 
     understaffed_days = schedule.columns[
-        schedule.loc['Required Agents'].astype(int) > manpower
+        schedule.loc['Required Agents'].astype(int) > ManPower
     ]
 
     understaffed_message = 'Manpower requirements are not met for '
@@ -125,7 +126,7 @@ def calculate_alternative(
             num_agents = daily_agents(cr, rates, days, i+1)[j]
             past_num_agents = daily_agents(cr, rates, days, i)[j]
 
-            if (num_agents <= manpower - len(title) + 1 and num_agents != past_num_agents):
+            if (num_agents <= ManPower - len(title) + 1 and num_agents != past_num_agents):
                 date = future_busday(complete_dates[j], i+1)
                 survey_dict[date] = num_agents
 
