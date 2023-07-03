@@ -3,7 +3,7 @@ import math
 
 def round_decimals_up(number:float, decimals:int=0):
     """
-    Returns a value rounded up to a specific number of decimal places.
+    Used to return integral values for call agents.
     """
     if not isinstance(decimals, int):
         raise TypeError("decimal places must be an integer")
@@ -12,7 +12,7 @@ def round_decimals_up(number:float, decimals:int=0):
     elif decimals == 0:
         return math.ceil(number)
 
-    factor = 10 ** decimals
+    factor = 10 ** decimals 
     return math.ceil(number * factor) / factor
 
 def linearoptimizer(df, Number_running_survey, ManPower):
