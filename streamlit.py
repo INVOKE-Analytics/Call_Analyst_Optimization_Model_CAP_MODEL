@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 from ortools.linear_solver import pywraplp
 from utils.linear_programming import round_decimals_up, linearoptimizer
-from utils.utils import view_alternative
+from utils.utils import calculate_alternative
 
 
 st.write(
@@ -180,14 +180,14 @@ except Exception as e1:
 try:
     results, SolutionValues = linearoptimizer(df, Number_running_survey, ManPower)
 except Exception as e2:
-    st.error(f'e2: {e2}') 
+    st.error(f'e2: {e2}')
 
 
 # View result
 try:
     veiw = View_results()
     if df.iloc[0, 5] == 'Infeasible' and (df.iloc[:, 3] > 0).all():
-        view_alternative(df, ManPower, today)
+        calculate_alternative(df, ManPower, today)
 
 except Exception as e3:
     raise e3

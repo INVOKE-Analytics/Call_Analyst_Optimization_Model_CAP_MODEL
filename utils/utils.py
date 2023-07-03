@@ -49,7 +49,7 @@ def create_table(
 
     return table
 
-def view_alternative(
+def calculate_alternative(
     df: pd.DataFrame,
     manpower: int,
     current_date: np.datetime64) -> None:
@@ -123,9 +123,9 @@ def view_alternative(
 
         for i in range(extension):
             num_agents = daily_agents(cr, rates, days, i+1)[j]
+            past_num_agents = daily_agents(cr, rates, days, i)[j]
 
-            if (num_agents <= manpower - len(title) + 1
-                and num_agents != daily_agents(cr, rates, days, i)[j]):
+            if (num_agents <= manpower - len(title) + 1 and num_agents != past_num_agents):
                 date = future_busday(complete_dates[j], i+1)
                 survey_dict[date] = num_agents
 
@@ -134,13 +134,12 @@ def view_alternative(
     for k,v in extension_dates.items():
         if bool(v):
             extension_df = pd.DataFrame(v, index=[k])
-            extension_df = (
-                extension_df
-                .astype(int)
-                .T
+            extension_df = extension_df \
+                .astype(int) \
+                .T \
                 .drop_duplicates(keep='first')
-            )
             st.dataframe(extension_df.T, use_container_width=False)
+
         else:
             st.write(f'Survey {k} needs a larger extension.')
 

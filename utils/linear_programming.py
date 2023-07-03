@@ -23,14 +23,14 @@ def linearoptimizer(df, Number_running_survey, ManPower):
                         for i
                         in range(Number_running_survey)]
 
-    # Constraint 1: X * CR/day/agent >= Target CR/day
+    # Constraint 1: X_i * CR/day/agent >= Target CR/day
     for idx, var in enumerate(DecisionVariable):
         solver.Add(var * df.iloc[idx, 1] >= df.iloc[idx, 4])
 
     # Constraint 2: X1 + X2 + ... <= ManPower
     solver.Add(sum(DecisionVariable) == ManPower)
 
-    #Objective 
+    # Objective, Maximize: SUM(X_i * CR/day/agent) 
     Maxs = [var * df.iloc[idx, 1]
             for idx, var 
             in enumerate(DecisionVariable)]
