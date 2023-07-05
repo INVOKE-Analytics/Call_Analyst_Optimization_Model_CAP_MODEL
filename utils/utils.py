@@ -150,13 +150,6 @@ def calculate_alternative(
         else:
             st.write(f'Survey {k} needs a larger extension.')
 
-    weights = list(range(180))
-    profits = [daily_agents(cr, rates, days, i+1) for i in weights]
-
-    fig, ax = plt.subplots()
-    ax.scatter(x=weights, y=profits)
-    st.pyplot(fig)
-
 
 def knapsack_solver(
     weights:list, 
