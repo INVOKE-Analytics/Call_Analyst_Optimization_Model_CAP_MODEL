@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 from ortools.linear_solver import pywraplp
 from utils.linear_programming import round_decimals_up, linearoptimizer
-from utils.utils import calculate_alternative
+from utils.utils import calculate_alternative, survey_extension_solver
 
 
 st.write(
@@ -135,7 +135,18 @@ def View_results():
                     help=None
                 )
 
+                agent_difference = (df.iloc[i, 6] - df.iloc[i, 4]) // df.iloc[i, 1] or "0"
+                agent_color = 'off' if agent_difference in ('-', '0', 'None') else 'normal'
+                columns[i].metric(
+                    label='Agents',
+                    value=df.iloc[i, 5],
+                    delta=str(agent_difference),
+                    delta_color=agent_color,
+                    help=None
+                )
+
             except Exception as e:
+                raise e
                 pass
 
         st.write('\n')
@@ -170,6 +181,38 @@ def View_results():
         )
 
 
+def View_Optimal():
+    survey_cr = df['Remaining CR'].tolist()
+    survey_rate = df['Avg Daily CR/agent'].tolist()
+    survey_day = [0 for _ in range(df.shape[0])]
+    
+    surveys = list(zip(survey_cr, survey_rate, survey_day))
+    max_extension = st.session_state.get('max_extension', 10)
+    max_manpower = ManPower
+
+    solutions = survey_extension_solver(
+        surveys=surveys,
+        max_extension=max_extension,
+        max_manpower=max_manpower,
+    )
+    if solutions:
+        solution_df = pd.DataFrame()
+        agents, days = solutions[0]
+        solution_df = solution_df.assign(
+            **{
+                'Survey Title': df['Survey Title'],
+                'Avg Daily CR/agent': df['Avg Daily CR/agent'],
+                'Remaining CR': df['Remaining CR'],
+                'Remaining Working Days': days,
+                'Target CR/day': df['Remaining CR'] // pd.Series(days),
+                'Call Agents Allocation': agents,
+                'Plan CR/day': df['Avg Daily CR/agent'] * pd.Series(agents)
+            },
+        )
+        st.table(solution_df)
+    else:
+        st.write("Solution not found. Either extend the maximum extension or increase manpower.")
+
 # Get Input from user
 try:
     df = Survey_input_details()
@@ -188,6 +231,7 @@ try:
     veiw = View_results()
     if df.iloc[0, 5] == 'Infeasible' and (df.iloc[:, 3] > 0).all():
         calculate_alternative(df, ManPower, today)
+        View_Optimal()
 
 except Exception as e3:
     raise e3

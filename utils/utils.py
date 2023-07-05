@@ -118,37 +118,38 @@ def calculate_alternative(
         'Maximum extension',
         min_value=0,
         max_value=180,
-        value=10
+        value=10,
+        key='max_extension'
     )
 
     # Need to prettify this ugly dict comprehension further
-    extension_dates = dict()
-    for j in range(len(title)):
-        survey_dict = dict()
+    # extension_dates = dict()
+    # for j in range(len(title)):
+    #     survey_dict = dict()
 
-        for i in range(extension):
-            num_agents = daily_agents(cr, rates, days, i+1)[j]
-            past_num_agents = daily_agents(cr, rates, days, i)[j]
+    #     for i in range(extension):
+    #         num_agents = daily_agents(cr, rates, days, i+1)[j]
+    #         past_num_agents = daily_agents(cr, rates, days, i)[j]
 
-            if (num_agents <= ManPower - len(title) + 1
-                and num_agents != past_num_agents):
+    #         if (num_agents <= ManPower - len(title) + 1
+    #             and num_agents != past_num_agents):
 
-                date = future_busday(complete_dates[j], i+1)
-                survey_dict[date] = num_agents
+    #             date = future_busday(complete_dates[j], i+1)
+    #             survey_dict[date] = num_agents
 
-        extension_dates[title[j]] = survey_dict
+    #     extension_dates[title[j]] = survey_dict
 
-    for k,v in extension_dates.items():
-        if bool(v):
-            extension_df = pd.DataFrame(v, index=[k])
-            extension_df = extension_df \
-                .astype(int) \
-                .T \
-                .drop_duplicates(keep='first')
-            st.dataframe(extension_df.T, use_container_width=False)
+    # for k,v in extension_dates.items():
+    #     if bool(v):
+    #         extension_df = pd.DataFrame(v, index=[k])
+    #         extension_df = extension_df \
+    #             .astype(int) \
+    #             .T \
+    #             .drop_duplicates(keep='first')
+    #         st.dataframe(extension_df.T, use_container_width=False)
 
-        else:
-            st.write(f'Survey {k} needs a larger extension.')
+    #     else:
+    #         st.write(f'Survey {k} needs a larger extension.')
 
 
 def knapsack_solver(
@@ -166,7 +167,7 @@ def knapsack_solver(
     last_path = [[] for _ in range(max_iteration)]
 
     for i in range(len(weights[0])):
-        if weights[0][i] != max_weight:
+        if weights[0][i] < max_weight:
             weight = weights[0][i]
             if last_array[weight] < values[0][i]:
                 last_array[weight] = values[0][i]
@@ -221,7 +222,7 @@ def survey_extension_solver(
 
     for idx, (score, path) in enumerate(solution):
         agent = [tup[2] for tup in path]
-        extend = [max_extension-viable_days[idx][elem]
+        extend = [max_extension-viable_days[idx][elem]+1
                   for idx, elem
                   in enumerate([tup[1] for tup in path])]
         schedule.append((agent, extend))
