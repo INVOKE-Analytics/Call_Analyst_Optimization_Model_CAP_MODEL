@@ -203,10 +203,21 @@ def View_Optimal():
                 'Survey Title': df['Survey Title'],
                 'Avg Daily CR/agent': df['Avg Daily CR/agent'],
                 'Remaining CR': df['Remaining CR'],
-                'Remaining Working Days': days,
+                'End Date': np.busday_offset(dates=today, offsets=days, roll='forward'),
                 'Target CR/day': df['Remaining CR'] // pd.Series(days),
                 'Call Agents Allocation': agents,
                 'Plan CR/day': df['Avg Daily CR/agent'] * pd.Series(agents)
+            },
+        )
+        solution_df = solution_df.astype(
+            {
+                'Survey Title':'string',
+                'Avg Daily CR/agent': 'int',
+                'Remaining CR': 'int',
+                'End Date': 'string',
+                'Target CR/day': 'int',
+                'Call Agents Allocation': 'int',
+                'Plan CR/day': 'int',
             },
         )
         st.table(solution_df)

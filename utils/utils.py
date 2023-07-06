@@ -228,10 +228,10 @@ def survey_extension_solver(
         schedule.append((agent, extend))
 
     if schedule:
-        for i in range(top_n):
-            print(", ".join([f"Assign {agents} call agents to survey {idx} for {days} days" 
-                             for idx, (agents, days) 
-                             in enumerate(zip(*schedule[i]))]).capitalize())
+        # for i in range(top_n):
+        #     print(", ".join([f"Assign {agents} call agents to survey {idx} for {days} days" 
+        #                      for idx, (agents, days) 
+        #                      in enumerate(zip(*schedule[i]))]).capitalize())
         return schedule
     else:
         print("Solution not found. Either extend the maximum extension or increase manpower.")
