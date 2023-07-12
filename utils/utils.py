@@ -5,7 +5,6 @@ from itertools import repeat, combinations
 import numpy as np
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
 
 
 def create_table(
