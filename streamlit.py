@@ -1,194 +1,253 @@
-from ortools.linear_solver import pywraplp
-import streamlit as st
-import pandas as pd
 import numpy as np
-from linear_programming import round_decimals_up, linearoptimizer
+import pandas as pd
+import streamlit as st
 
-st.write("""
-### CALL ANALYST OPTIMIZATION MODEL (CAP MODEL)
+from math import ceil
+from utils.utils import calculate_alternative, survey_extension_solver
 
-#### Description
-An optimization model that will guide our call analyst allocation for survey works in order to complete all survey projects in a timely manner.
+st.write(
+    '### CALL ANALYST ALLOCATION OPTMIZATION\n'
+    '\n'
+    '#### Description\n'
+    'An optimization model that will guide our call analyst '
+    'allocation for survey works in order to complete all '
+    'survey projects in a timely manner.\n'
+    '***'
+)
+col1, col2 = st.columns(2)
 
-***
-""")
+def survey_input_details() -> pd.DataFrame:
+    survey_names = []
+    cr_rates = []
+    remaining_cr = []
+    remaining_working_days = []
+    target_cr_day = []
+    allocated_agents = []
 
-st.sidebar.write("""## STEP 1: Input parameters""")
-Number_running_survey = st.sidebar.number_input('How many surveys will be conducted today?', 1,10)
-ManPower = st.sidebar.number_input('How many call agents we have?', 1,100)
-today = st.sidebar.date_input("Today's date")
-st.sidebar.write("""***
-## STEP 2: Survey input details""")
 
-def Survey_input_details():
-    Names = []
-    CRs = []
-    NoCallReqs = []
-    NoDaysRemains = []
-    MinCalls = []
-    ManpowerAllocateds = []
-    for i in range(Number_running_survey):
-        st.sidebar.write('#### Please enter survey details as below:')
-        Name = st.sidebar.text_input(str(i)+'. Survey name ')
-        CR = st.sidebar.slider(str(i)+'. Avg Daily CR/agent ', 1,50,10)
-        NoCallReq = st.sidebar.number_input(str(i)+'. Remaining CR ', 1,10000)
-        DueDate = st.sidebar.date_input(str(i)+". Target Completion Date",)
-        PlannedCall = int()
-        ManpowerAllocated = int()
-        Names.append(Name)
-        CRs.append(CR) 
-        NoCallReqs.append(int(NoCallReq))
-        NoDaysRemain = np.busday_count(today,DueDate)
-        NoDaysRemains.append(NoDaysRemain)
-        if NoDaysRemain != 0:
-            MinCall = round_decimals_up(NoCallReq/NoDaysRemain)
-            MinCalls.append(int(MinCall))
-        else:
-            MinCall = NoCallReq/NoDaysRemain
-            MinCalls.append(MinCall)      
-        ManpowerAllocateds.append(ManpowerAllocated)
-        st.sidebar.write('***')
-    data = {'Survey Title':Names,
-            'Avg Daily CR/agent':CRs,
-            'Remaining CR':NoCallReqs,
-            'Remaining Working Days':NoDaysRemains,
-            'Target CR/day':MinCalls,
-            'Call Agents Allocation': ManpowerAllocateds,
-            'Plan CR/day':PlannedCall}
+    with col1:
+        extension = st.number_input(
+            'Maximum Survey Duration',
+            min_value=0,
+            max_value=180,
+            value=10,
+            key='max_extension'
+        )
+
+    with st.sidebar:
+        st.write('## STEP 1: Input parameters')
+        input_type = st.selectbox(
+            label='CSV Upload or Manual Input',
+            options=['CSV', 'Manual'],
+            index=1,
+            key='input_type'
+        )
+
+        if input_type == 'CSV':
+            survey_csv = st.file_uploader(
+                label='Upload survey CSV file',
+                type='csv',
+                key='csv_file'
+            )
+            manpower = st.number_input(
+                'How many call agents we have? (Max: 100)',
+                1,
+                100,
+                key='manpower'
+            )
+
+        if st.session_state.get('csv_file', False):
+            survey_df = pd.read_csv(survey_csv, parse_dates=[4], nrows=10)
+            survey_df.set_index('index', inplace=True)
+            survey_df.dropna(inplace=True)
+
+            today = st.date_input(
+                'Today\'s date',
+                disabled=True,
+                key='current_date'
+            )
+
+            survey_names = survey_df['survey_title'].tolist()
+            cr_rates = survey_df['cr_rate_per_agent'].tolist()
+            remaining_cr = survey_df['remaining_cr'].astype(int).tolist()
+            survey_day_count = np.busday_count(
+                today,
+                survey_df['deadline'].values.astype('<M8[D]')
+            )
+            remaining_working_days = survey_day_count.tolist()
+
+            survey_target_cr = np.ceil(survey_df['remaining_cr'] / survey_day_count)
+            target_cr_day = survey_target_cr.values.astype(int).tolist()
+            allocated_agents = [int() for _ in survey_names]
+            survey_planned_cr = int()
+
+        if input_type == 'Manual':
+            survey_count = st.number_input(
+                'How many surveys will be conducted today? (Max: 10)',
+                1,
+                10,
+                key='survey_count'
+            )
+            manpower = st.number_input(
+                'How many call agents we have? (Max: 100)',
+                1,
+                100,
+                key='manpower'
+            )
+            today = st.date_input(
+                'Today\'s date',
+                key='current_date'
+            )
+            st.write(
+            '''
+            ***
+            ## STEP 2: Survey input details
+            '''
+            )
+
+            for i in range(survey_count):
+                st.write('#### Please enter survey details as below:')
+
+                name = st.text_input(f'{i}. Survey name ')
+                survey_cr_rate = st.number_input(
+                    f'{i}. Avg Daily CR/agent ',
+                    1,
+                    50,
+                    10
+                )
+                survey_cr = st.number_input(
+                    f'{i}. Remaining CR ',
+                    1,
+                    10000
+                )
+                # deadline = st.checkbox(
+                #     'Hard Deadline?',
+                #     value=False,
+                #     key=f"deadline_{i}"
+                # )
+                due_date = st.date_input(
+                    f'{i}. Target Completion Date', 
+                    value=np.busday_offset(today, 1, 'forward').tolist(), 
+                    min_value=today, 
+                    key=f'{i}_complete_date',
+                    # disabled=deadline
+                )
+
+                survey_planned_cr = int()
+                survey_agents = int()
+                survey_names.append(name)
+                cr_rates.append(survey_cr_rate) 
+                remaining_cr.append(int(survey_cr))
+                survey_day_count = np.busday_count(today, due_date)
+                remaining_working_days.append(survey_day_count)
+
+                if survey_day_count != 0:
+                    survey_target_cr = ceil(survey_cr / survey_day_count)
+                    target_cr_day.append(int(survey_target_cr))
+                else:
+                    survey_target_cr = survey_cr / survey_day_count
+                    target_cr_day.append(survey_target_cr)
+                allocated_agents.append(survey_agents)
+                st.write('***')
+
+    data = {
+        'Survey Title': survey_names,
+        'Avg Daily CR/agent': cr_rates,
+        'Remaining CR': remaining_cr,
+        'Remaining Working Days': remaining_working_days,
+        'Call Agents Allocation': allocated_agents,
+        'Target CR/day': target_cr_day,
+        'Plan CR/day': survey_planned_cr,
+        'Deadline Days': survey_day_count
+    }
+
     dataframe = pd.DataFrame.from_dict(data)
     return dataframe
 
 
-def View_results():
-    if df.iloc[0,0] != '':
-        if results == pywraplp.Solver.OPTIMAL:
-            st.write("""
-            #### Surveys Summary""")
-            for y in range(Number_running_survey):
-                df.iloc[y,5] = SolutionValues[y]
-                df.iloc[y,6] = SolutionValues[y] * df.iloc[y,1]
-            st.write('The algorithm found the optimal call analysts allocation to maximize the total plan CR/day & meet the surveys target completion date.')
-            st.table(df)
-            st.write('##### Target vs Plan CR/day')
-            if Number_running_survey == 1:
-                col0 = st.columns(1)
-            elif Number_running_survey == 2:
-                col0,col1 = st.columns(2)
-            elif Number_running_survey == 3:
-                col0,col1,col2 = st.columns(3)
-            elif Number_running_survey == 4:
-                col0,col1,col2,col3 = st.columns(4)
-            elif Number_running_survey == 5:
-                col0,col1,col2,col3,col4 = st.columns(5)
-            elif Number_running_survey == 6:
-                col0,col1,col2,col3,col4,col5 = st.columns(6)
-            elif Number_running_survey == 7:
-                col0,col1,col2,col3,col4,col5,col6 = st.columns(7)
-            elif Number_running_survey == 8:
-                col0,col1,col2,col3,col4,col5,col6,col7 = st.columns(8)
-            elif Number_running_survey == 9:
-                col0,col1,col2,col3,col4,col5,col6,col7,col8 = st.columns(9)
-            else:
-                col0,col1,col2,col3,col4,col5,col6,col7,col8,col9 = st.columns(10)
-            
-            try:
-                col0.write(df.iloc[0,0])
-                col0.metric(label='Target CR/day', value= df.iloc[0,4], help=None)
-                col0.metric(label='Plan CR/day', value= df.iloc[0,6], delta=int(df.iloc[0,6]-df.iloc[0,4]), delta_color="normal", help=None)
+def display_solution(df: pd.DataFrame):
+    remaining_cr = df['Remaining CR'].tolist()
+    cr_rates = df['Avg Daily CR/agent'].tolist()
+    starting_day = [0 for _ in range(df.shape[0])]
 
-            except Exception:
-                pass
-            try:
-                col1.write(df.iloc[1,0])
-                col1.metric(label='Target CR/day', value= df.iloc[1,4], help=None)
-                col1.metric(label='Plan CR/day', value= df.iloc[1,6], delta=int(df.iloc[1,6]-df.iloc[1,4]), delta_color="normal", help=None)
-            except Exception:
-                pass  
-            try:
-                col2.write(df.iloc[2,0])
-                col2.metric(label='Target CR/day', value= df.iloc[2,4], help=None)
-                col2.metric(label='Plan CR/day', value= df.iloc[2,6], delta=int(df.iloc[2,6]-df.iloc[2,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col3.write(df.iloc[3,0])
-                col3.metric(label='Target CR/day', value= df.iloc[3,4], help=None)
-                col3.metric(label='Plan CR/day', value= df.iloc[3,6], delta=int(df.iloc[3,6]-df.iloc[3,4]), delta_color="normal", help=None)
-            except Exception:
-                pass 
-            try:
-                col4.write(df.iloc[4,0])
-                col4.metric(label='Target CR/day', value= df.iloc[4,4], help=None)
-                col4.metric(label='Plan CR/day', value= df.iloc[4,6], delta=int(df.iloc[4,6]-df.iloc[4,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col5.write(df.iloc[5,0])
-                col5.metric(label='Target CR/day', value= df.iloc[5,4], help=None)
-                col5.metric(label='Plan CR/day', value= df.iloc[5,6], delta=int(df.iloc[5,6]-df.iloc[5,4]), delta_color="normal", help=None)
-            except Exception:
-                pass 
-            try:
-                col6.write(df.iloc[6,0])
-                col6.metric(label='Target CR/day', value= df.iloc[6,4], help=None)
-                col6.metric(label='Plan CR/day', value= df.iloc[6,6], delta=int(df.iloc[6,6]-df.iloc[6,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col7.write(df.iloc[7,0])
-                col7.metric(label='Target CR/day', value= df.iloc[7,4], help=None)
-                col7.metric(label='Plan CR/day', value= df.iloc[7,6], delta=int(df.iloc[7,6]-df.iloc[7,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col8.write(df.iloc[8,0])
-                col8.metric(label='Target CR/day', value= df.iloc[8,4], help=None)
-                col8.metric(label='Plan CR/day', value= df.iloc[8,6], delta=int(df.iloc[8,6]-df.iloc[8,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            try:
-                col9.write(df.iloc[9,0])
-                col9.metric(label='Target CR/day', value= df.iloc[9,4], help=None)
-                col9.metric(label='Plan CR/day', value= df.iloc[9,6], delta=int(df.iloc[9,6]-df.iloc[9,4]), delta_color="normal", help=None)
-            except Exception:
-                pass
-            st.write('\n')
-            st.write('##### Remark')
-            st.write('The optimization only to make sure all surveys can be completed exactly on the target completion date with maximum number of total plan CR / day.\nIf the different between **plan CR / day** and **target CR / day** are skewed toward any of surveys, you can make adjustment by tuning the **Target Completion Date** of each surveys.')
-        else:
-            st.write("""
-            #### Surveys Summary""")
-            for y in range(Number_running_survey):
-                df.iloc[y,5] = 'Infeasible'
-                df.iloc[y,6] = 'Infeasible'
-            st.write('\n')
-            st.write('The algorithm terminated successfully and determined that the problem is infeasible.')
-            st.table(df)
-            st.write('\n')
-            st.write('##### Remark')
-            st.write('The algorithm unable to find the optimal call agents allocation to meet the surveys dateline.\nTo re-evaluate the opmitization, You may replan by:\n1. extending the surveys **target completion date**.\n2. Increasing the **total number of call agents**.')
+    surveys = list(zip(remaining_cr, cr_rates, starting_day))
+    max_extension = st.session_state.get('max_extension', 10)
+    max_manpower = st.session_state.get('manpower', 1)
+
+    solutions = survey_extension_solver(
+        surveys=surveys,
+        max_extension=max_extension,
+        max_manpower=max_manpower,
+        top_n=5
+    )
+
+
+    if solutions:
+        solution_options = [f'Top {i+1}' for i in range(min(5, len(solutions)))]
+
+        with col2:
+            st.selectbox(
+                'Select top solutions',
+                options=solution_options,
+                index=0,
+                key='top_n'
+            )
+
+        top_n = solution_options.index(st.session_state.get('top_n', 'Top 1'))
+        agents, days = solutions[top_n]
+        today = st.session_state.get('current_date', None)
+        due_dates = np.busday_offset(
+            dates=today,
+            offsets=days,
+            roll='forward'
+        )
+        leftover_cr = (df['Deadline Days'] * df['Avg Daily CR/agent'] * pd.Series(agents))
+        solutions_df = pd.DataFrame.from_dict(
+            {
+                'Survey Title': df['Survey Title'],
+                'Avg Daily CR/agent': df['Avg Daily CR/agent'],
+                'Remaining CR': df['Remaining CR'],
+                'Total CR by Deadline': leftover_cr,
+                'Remaining CR by Deadline': df['Remaining CR'] - leftover_cr,
+                'Remaining Working Days': pd.Series(days),
+                'Optimal Due Date': due_dates,
+                'Call Agents Allocation': agents,
+                'Target CR/day': np.ceil(df['Remaining CR'] / df['Deadline Days']),
+                'Target CR/Agent/day': np.ceil(df['Remaining CR'] / df['Deadline Days'] / agents),
+                'Plan CR/day': df['Avg Daily CR/agent'] * pd.Series(agents),
+            }
+        )
+
+        solutions_df = solutions_df.astype(
+            {
+                'Survey Title':'string',
+                'Avg Daily CR/agent': 'int',
+                'Remaining CR': 'int',
+                'Total CR by Deadline': 'int',
+                'Remaining CR by Deadline': 'int',
+                'Remaining Working Days': 'int',
+                'Optimal Due Date': 'string',
+                'Call Agents Allocation': 'int',
+                'Target CR/day': 'int',
+                'Target CR/Agent/day': 'int',
+                'Plan CR/day': 'int',
+            },
+        )
+        st.table(solutions_df)
     else:
-        st.write('\n')
-        st.write('Please fill in the required information')
-        st.write('\n')
+        st.write(
+            'Solution not found.'
+            ' Either extend the maximum extension or increase manpower.'
+        )
 
-# Get Input from user
+
+# Main display
 try:
-    df = Survey_input_details()
-except Exception as e1:
-    st.error(f"e1: {e1}") 
-
-# Calculate Mixed Integer Linear Programming
+    df = survey_input_details()
+except UnboundLocalError:
+    pass
 try:
-    results, SolutionValues = linearoptimizer(df, Number_running_survey, ManPower)
-except Exception as e2:
-    st.error(f"e2: {e2}") 
-
-def left_align(s, props='text-align: center;'):
-    return props
-
-# View result
-try:
-    veiw = View_results()
-except Exception as e3:
-    st.error(f"e3: {e3}") 
+    if df['Survey Title'].all():
+        display_solution(df)
+except NameError:
+    pass
