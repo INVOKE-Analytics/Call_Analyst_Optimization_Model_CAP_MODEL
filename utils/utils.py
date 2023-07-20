@@ -1,6 +1,6 @@
 from copy import deepcopy
 from math import ceil
-from itertools import repeat, combinations
+from itertools import repeat
 
 import numpy as np
 import pandas as pd
