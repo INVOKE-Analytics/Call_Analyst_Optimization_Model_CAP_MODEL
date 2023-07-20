@@ -54,6 +54,7 @@ def create_table(
 
 def calculate_alternative(
     df: pd.DataFrame,
+    hard_deadline: list,
     ManPower: int,
     current_date: np.datetime64) -> None:
 

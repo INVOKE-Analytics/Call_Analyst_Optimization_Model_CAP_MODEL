@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 
 from math import ceil
-from utils.utils import calculate_alternative, survey_extension_solver
+from utils.utils import survey_extension_solver
 
 st.write(
     '### CALL ANALYST ALLOCATION OPTMIZATION\n'
