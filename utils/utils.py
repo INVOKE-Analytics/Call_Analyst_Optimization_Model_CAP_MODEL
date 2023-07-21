@@ -1,5 +1,6 @@
-from copy import deepcopy
 from math import ceil
+from json import loads
+from copy import deepcopy
 from itertools import repeat
 
 import numpy as np
@@ -98,6 +99,7 @@ def knapsack_solver(
 
 def survey_extension_solver(
     surveys:list, 
+    hard_deadlines:list,
     max_extension:int, 
     max_manpower:int, 
     top_n:int=1) -> dict:
@@ -105,7 +107,12 @@ def survey_extension_solver(
 
     problem_dict = [dict.fromkeys([]) for _ in surveys]
     for idx, (cr, rate, day) in enumerate(surveys):
-        for extension in range(max_extension):
+        if hard_deadlines[idx] > 0:
+            largest_extension = min(max_extension, hard_deadlines[idx])
+        else:
+            largest_extension = max_extension
+
+        for extension in range(largest_extension):
             agents = daily_agents(cr, rate, day, extension+1)
             if agents not in problem_dict[idx].values():
                 problem_dict[idx][max_extension-extension] = agents
@@ -132,6 +139,16 @@ def survey_extension_solver(
     else:
         print("Solution not found. Either extend the maximum extension or increase manpower.")
         return
+
+
+@st.cache_data(ttl=60*60*24)
+def get_const(file_path: str):
+    try:
+        with open(file_path, "r") as file:
+            const_dict = loads(file.read())
+        return const_dict
+    except FileNotFoundError as err:
+        print(f"Select a valid path. {err}")
 
 
 def left_align(s, props='text-align: center;'):
