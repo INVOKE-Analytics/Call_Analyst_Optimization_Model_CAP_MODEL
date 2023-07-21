@@ -5,7 +5,7 @@ import streamlit as st
 from math import ceil
 from utils.utils import survey_extension_solver, get_const
 
-const_dict = get_const("constants.json")
+const_dict = get_const("utils/constants.json")
 MAX_CALL_AGENTS = const_dict["MAX_CALL_AGENTS"]
 DEFAULT_CR_RATE = const_dict["DEFAULT_CR_RATE"]
 MAX_REMAINING_CR = const_dict["MAX_REMAINING_CR"]
