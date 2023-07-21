@@ -91,8 +91,17 @@ def knapsack_solver(
         last_array = current_array
         last_path = current_path
 
-    solution = [elem for elem in zip(last_array, last_path) if elem[0] != -1]
-    solution = sorted(solution, key=lambda tup: tup[0], reverse=True)
+    solution = [
+        elem 
+        for elem 
+        in zip(last_array, last_path) 
+        if elem[0] != -1
+    ]
+    solution = sorted(
+        solution, 
+        key=lambda tup: tup[0], 
+        reverse=True
+    )
 
     return solution[:top_n]
 
@@ -129,26 +138,31 @@ def survey_extension_solver(
 
     for idx, (score, path) in enumerate(solution):
         agent = [tup[2] for tup in path]
-        extend = [max_extension-viable_days[idx][elem]+1
-                  for idx, elem
-                  in enumerate([tup[1] for tup in path])]
+        extend = [
+            max_extension-viable_days[idx][elem]+1
+            for idx, elem
+            in enumerate([tup[1] for tup in path])
+        ]
         schedule.append((agent, extend))
 
     if schedule:
         return schedule
     else:
-        print("Solution not found. Either extend the maximum extension or increase manpower.")
+        print(
+            'Solution not found. '
+            'Either extend the maximum extension or increase manpower.'
+        )
         return
 
 
 @st.cache_data(ttl=60*60*24)
 def get_const(file_path: str):
     try:
-        with open(file_path, "r") as file:
+        with open(file_path, 'r') as file:
             const_dict = loads(file.read())
         return const_dict
     except FileNotFoundError as err:
-        print(f"Select a valid path. {err}")
+        print(f'Select a valid path. {err}')
 
 
 def left_align(s, props='text-align: center;'):
