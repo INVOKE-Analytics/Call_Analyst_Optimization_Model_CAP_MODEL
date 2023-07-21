@@ -100,19 +100,19 @@ def survey_input_details() -> pd.DataFrame:
 
         if input_type == 'Manual':
             survey_count = st.number_input(
-                'How many surveys will be conducted today? (Max: 10)',
+                lable='How many surveys will be conducted today? (Max: 10)',
                 min_value=1,
                 max_value=MAX_SURVEY_COUNT,
                 key='survey_count'
             )
             manpower = st.number_input(
-                'How many call agents we have? (Max: 100)',
+                lable='How many call agents we have? (Max: 100)',
                 min_value=1,
                 max_value=MAX_CALL_AGENTS,
                 key='manpower'
             )
             today = st.date_input(
-                'Today\'s date',
+                lable='Today\'s date',
                 key='current_date'
             )
             st.write(
@@ -127,23 +127,23 @@ def survey_input_details() -> pd.DataFrame:
 
                 name = st.text_input(f'{i}. Survey name ')
                 survey_cr_rate = st.number_input(
-                    f'{i}. Avg Daily CR/agent ',
+                    lable=f'{i}. Avg Daily CR/agent ',
                     min_value=1,
                     max_value=MAX_CR_PER_AGENT_PER_DAY,
                     value=DEFAULT_CR_RATE
                 )
                 survey_cr = st.number_input(
-                    f'{i}. Remaining CR ',
+                    lable=f'{i}. Remaining CR ',
                     min_value=1,
                     max_value=MAX_REMAINING_CR
                 )
                 deadline = st.checkbox(
-                    'Hard Deadline?',
+                    lable='Hard Deadline?',
                     value=False,
                     key=f"deadline_{i}"
                 )
                 due_date = st.date_input(
-                    f'{i}. Target Completion Date', 
+                    lable=f'{i}. Target Completion Date', 
                     value=np.busday_offset(today, 1, 'forward').tolist(), 
                     min_value=today, 
                     key=f'{i}_complete_date',
