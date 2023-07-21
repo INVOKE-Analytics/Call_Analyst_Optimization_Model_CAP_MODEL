@@ -147,7 +147,6 @@ def survey_input_details() -> pd.DataFrame:
                     value=np.busday_offset(today, 1, 'forward').tolist(), 
                     min_value=today, 
                     key=f'{i}_complete_date',
-                    # disabled=deadline
                 )
 
                 survey_planned_cr = int()
