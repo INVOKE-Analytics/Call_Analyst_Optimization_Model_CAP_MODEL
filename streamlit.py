@@ -164,6 +164,7 @@ def survey_input_details() -> pd.DataFrame:
                 else:
                     survey_target_cr = survey_cr / survey_day_count
                     target_cr_day.append(survey_target_cr)
+
                 allocated_agents.append(survey_agents)
                 st.write('***')
 
@@ -186,6 +187,7 @@ def survey_input_details() -> pd.DataFrame:
 def display_solution(df: pd.DataFrame):
     remaining_cr = df['Remaining CR'].tolist()
     cr_rates = df['Avg Daily CR/agent'].tolist()
+
     starting_day = [0 for _ in range(df.shape[0])]
     hard_deadlines = [
         MAX_SURVEY_DURATION if not hard else remainder_days
@@ -194,7 +196,7 @@ def display_solution(df: pd.DataFrame):
     ]
 
     surveys = list(zip(remaining_cr, cr_rates, starting_day))
-    max_extension = st.session_state.get('max_extension', 10)
+    max_extension = st.session_state.get('max_extension', DEFAULT_EXTENSION)
     max_manpower = st.session_state.get('manpower', 1)
 
     solutions = survey_extension_solver(
