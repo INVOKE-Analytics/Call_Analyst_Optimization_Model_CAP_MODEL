@@ -3,7 +3,16 @@ import pandas as pd
 import streamlit as st
 
 from math import ceil
-from utils.utils import calculate_alternative, survey_extension_solver
+from utils.utils import survey_extension_solver, get_const
+
+const_dict = get_const("utils/constants.json")
+MAX_CALL_AGENTS = const_dict["MAX_CALL_AGENTS"]
+DEFAULT_CR_RATE = const_dict["DEFAULT_CR_RATE"]
+MAX_REMAINING_CR = const_dict["MAX_REMAINING_CR"]
+MAX_SURVEY_COUNT = const_dict["MAX_SURVEY_COUNT"]
+DEFAULT_EXTENSION = const_dict["DEFAULT_EXTENSION"]
+MAX_SURVEY_DURATION = const_dict["MAX_SURVEY_DURATION"]
+MAX_CR_PER_AGENT_PER_DAY = const_dict["MAX_CR_PER_AGENT_PER_DAY"]
 
 st.write(
     '### CALL ANALYST ALLOCATION OPTMIZATION\n'
@@ -23,14 +32,15 @@ def survey_input_details() -> pd.DataFrame:
     remaining_working_days = []
     target_cr_day = []
     allocated_agents = []
+    hard_deadlines = []
 
 
     with col1:
         extension = st.number_input(
             'Maximum Survey Duration',
             min_value=0,
-            max_value=180,
-            value=10,
+            max_value=MAX_SURVEY_DURATION,
+            value=DEFAULT_EXTENSION,
             key='max_extension'
         )
 
@@ -50,20 +60,27 @@ def survey_input_details() -> pd.DataFrame:
                 key='csv_file'
             )
             manpower = st.number_input(
-                'How many call agents we have? (Max: 100)',
-                1,
-                100,
+                label='How many call agents we have? (Max: 100)',
+                min_value=1,
+                max_value=MAX_CALL_AGENTS,
+                value=10,
                 key='manpower'
             )
 
         if st.session_state.get('csv_file', False):
-            survey_df = pd.read_csv(survey_csv, parse_dates=[4], nrows=10)
-            survey_df.set_index('index', inplace=True)
+            survey_df = pd.read_csv(
+                survey_csv, 
+                parse_dates=[4], 
+                nrows=10
+            )
+            survey_df.set_index(
+                'index', 
+                inplace=True
+            )
             survey_df.dropna(inplace=True)
 
             today = st.date_input(
-                'Today\'s date',
-                disabled=True,
+                label='Today\'s date',
                 key='current_date'
             )
 
@@ -83,19 +100,19 @@ def survey_input_details() -> pd.DataFrame:
 
         if input_type == 'Manual':
             survey_count = st.number_input(
-                'How many surveys will be conducted today? (Max: 10)',
-                1,
-                10,
+                lable='How many surveys will be conducted today? (Max: 10)',
+                min_value=1,
+                max_value=MAX_SURVEY_COUNT,
                 key='survey_count'
             )
             manpower = st.number_input(
-                'How many call agents we have? (Max: 100)',
-                1,
-                100,
+                lable='How many call agents we have? (Max: 100)',
+                min_value=1,
+                max_value=MAX_CALL_AGENTS,
                 key='manpower'
             )
             today = st.date_input(
-                'Today\'s date',
+                lable='Today\'s date',
                 key='current_date'
             )
             st.write(
@@ -110,27 +127,26 @@ def survey_input_details() -> pd.DataFrame:
 
                 name = st.text_input(f'{i}. Survey name ')
                 survey_cr_rate = st.number_input(
-                    f'{i}. Avg Daily CR/agent ',
-                    1,
-                    50,
-                    10
+                    lable=f'{i}. Avg Daily CR/agent ',
+                    min_value=1,
+                    max_value=MAX_CR_PER_AGENT_PER_DAY,
+                    value=DEFAULT_CR_RATE
                 )
                 survey_cr = st.number_input(
-                    f'{i}. Remaining CR ',
-                    1,
-                    10000
+                    lable=f'{i}. Remaining CR ',
+                    min_value=1,
+                    max_value=MAX_REMAINING_CR
                 )
-                # deadline = st.checkbox(
-                #     'Hard Deadline?',
-                #     value=False,
-                #     key=f"deadline_{i}"
-                # )
+                deadline = st.checkbox(
+                    lable='Hard Deadline?',
+                    value=False,
+                    key=f"deadline_{i}"
+                )
                 due_date = st.date_input(
-                    f'{i}. Target Completion Date', 
+                    lable=f'{i}. Target Completion Date', 
                     value=np.busday_offset(today, 1, 'forward').tolist(), 
                     min_value=today, 
                     key=f'{i}_complete_date',
-                    # disabled=deadline
                 )
 
                 survey_planned_cr = int()
@@ -140,6 +156,7 @@ def survey_input_details() -> pd.DataFrame:
                 remaining_cr.append(int(survey_cr))
                 survey_day_count = np.busday_count(today, due_date)
                 remaining_working_days.append(survey_day_count)
+                hard_deadlines.append(deadline)
 
                 if survey_day_count != 0:
                     survey_target_cr = ceil(survey_cr / survey_day_count)
@@ -147,6 +164,7 @@ def survey_input_details() -> pd.DataFrame:
                 else:
                     survey_target_cr = survey_cr / survey_day_count
                     target_cr_day.append(survey_target_cr)
+
                 allocated_agents.append(survey_agents)
                 st.write('***')
 
@@ -158,7 +176,8 @@ def survey_input_details() -> pd.DataFrame:
         'Call Agents Allocation': allocated_agents,
         'Target CR/day': target_cr_day,
         'Plan CR/day': survey_planned_cr,
-        'Deadline Days': survey_day_count
+        'Deadline Days': survey_day_count,
+        'Hard Deadlines': hard_deadlines
     }
 
     dataframe = pd.DataFrame.from_dict(data)
@@ -168,14 +187,21 @@ def survey_input_details() -> pd.DataFrame:
 def display_solution(df: pd.DataFrame):
     remaining_cr = df['Remaining CR'].tolist()
     cr_rates = df['Avg Daily CR/agent'].tolist()
+
     starting_day = [0 for _ in range(df.shape[0])]
+    hard_deadlines = [
+        MAX_SURVEY_DURATION if not hard else remainder_days
+        for remainder_days, hard 
+        in df.loc[:, ['Remaining Working Days', 'Hard Deadlines']].values.tolist()
+    ]
 
     surveys = list(zip(remaining_cr, cr_rates, starting_day))
-    max_extension = st.session_state.get('max_extension', 10)
+    max_extension = st.session_state.get('max_extension', DEFAULT_EXTENSION)
     max_manpower = st.session_state.get('manpower', 1)
 
     solutions = survey_extension_solver(
         surveys=surveys,
+        hard_deadlines=hard_deadlines,
         max_extension=max_extension,
         max_manpower=max_manpower,
         top_n=5
@@ -249,5 +275,6 @@ except UnboundLocalError:
 try:
     if df['Survey Title'].all():
         display_solution(df)
-except NameError:
+except NameError as e:
+    raise(e)
     pass

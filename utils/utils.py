@@ -1,6 +1,7 @@
-from copy import deepcopy
 from math import ceil
-from itertools import repeat, combinations
+from json import loads
+from copy import deepcopy
+from itertools import repeat
 
 import numpy as np
 import pandas as pd
@@ -52,105 +53,6 @@ def create_table(
     return table
 
 
-def calculate_alternative(
-    df: pd.DataFrame,
-    ManPower: int,
-    current_date: np.datetime64) -> None:
-
-    cr = df['Remaining CR']
-    rates = df['Avg Daily CR/agent']
-    days = df['Remaining Working Days'].clip(1, None)
-    title = df['Survey Title'].tolist()
-
-    daily_agents = lambda c, r, d, x: np.ceil(c / (r * (d + x)))
-    future_busday = lambda date, skip: str(np.busday_offset(date, skip, 'forward'))
-
-    complete_dates = [
-        st.session_state.get(f'{i}_complete_date')
-        for i 
-        in range(len(title))
-    ]
-
-    surveys = list(zip(cr, repeat(0), days))
-    schedule = create_table(
-        surveys=surveys,
-        rates=rates,
-        survey_title=title
-    )
-    schedule = schedule.replace('0', '-')
-    schedule.columns = [
-        future_busday(current_date, i)
-        for i 
-        in range(max(days))
-    ]
-
-    st.write('#### Minimum Agent Requirements')
-    st.write(
-        'The table shows the minimum number of agents '
-        'allocated to each survey for each working day '
-        'over the duration of the survey.'
-    )
-    st.write(f'##### Number of Available Call Agents: {ManPower}')
-    st.dataframe(schedule)
-
-    understaffed_days = schedule.columns[
-        schedule.loc['Required Agents'].astype(int) > ManPower
-    ]
-
-    understaffed_message = 'Manpower requirements are not met for '
-    if len(understaffed_days) == 1:
-        understaffed_message += f'the day {understaffed_days[0]}.'
-    elif len(understaffed_days) > 1:
-        understaffed_message += f'days {understaffed_days[0]} to {understaffed_days[-1]}.'
-    else:
-        understaffed_message = 'Manpower requirements met for all days.'
-
-    st.write(understaffed_message)
-    st.write('##### Extension')
-
-    st.write(
-        'The table shows the reduction in the number of '
-        'call agents required to reduce the minimum number '
-        'of call agents for a survey.'
-    )
-    extension = st.number_input(
-        'Maximum extension',
-        min_value=0,
-        max_value=180,
-        value=10,
-        key='max_extension'
-    )
-
-    # Need to prettify this ugly dict comprehension further
-    # extension_dates = dict()
-    # for j in range(len(title)):
-    #     survey_dict = dict()
-
-    #     for i in range(extension):
-    #         num_agents = daily_agents(cr, rates, days, i+1)[j]
-    #         past_num_agents = daily_agents(cr, rates, days, i)[j]
-
-    #         if (num_agents <= ManPower - len(title) + 1
-    #             and num_agents != past_num_agents):
-
-    #             date = future_busday(complete_dates[j], i+1)
-    #             survey_dict[date] = num_agents
-
-    #     extension_dates[title[j]] = survey_dict
-
-    # for k,v in extension_dates.items():
-    #     if bool(v):
-    #         extension_df = pd.DataFrame(v, index=[k])
-    #         extension_df = extension_df \
-    #             .astype(int) \
-    #             .T \
-    #             .drop_duplicates(keep='first')
-    #         st.dataframe(extension_df.T, use_container_width=False)
-
-    #     else:
-    #         st.write(f'Survey {k} needs a larger extension.')
-
-
 def knapsack_solver(
     weights:list, 
     values:list, 
@@ -189,14 +91,24 @@ def knapsack_solver(
         last_array = current_array
         last_path = current_path
 
-    solution = [elem for elem in zip(last_array, last_path) if elem[0] != -1]
-    solution = sorted(solution, key=lambda tup: tup[0], reverse=True)
+    solution = [
+        elem 
+        for elem 
+        in zip(last_array, last_path) 
+        if elem[0] != -1
+    ]
+    solution = sorted(
+        solution, 
+        key=lambda tup: tup[0], 
+        reverse=True
+    )
 
     return solution[:top_n]
 
 
 def survey_extension_solver(
     surveys:list, 
+    hard_deadlines:list,
     max_extension:int, 
     max_manpower:int, 
     top_n:int=1) -> dict:
@@ -204,7 +116,12 @@ def survey_extension_solver(
 
     problem_dict = [dict.fromkeys([]) for _ in surveys]
     for idx, (cr, rate, day) in enumerate(surveys):
-        for extension in range(max_extension):
+        if hard_deadlines[idx] > 0:
+            largest_extension = min(max_extension, hard_deadlines[idx])
+        else:
+            largest_extension = max_extension
+
+        for extension in range(largest_extension):
             agents = daily_agents(cr, rate, day, extension+1)
             if agents not in problem_dict[idx].values():
                 problem_dict[idx][max_extension-extension] = agents
@@ -221,16 +138,31 @@ def survey_extension_solver(
 
     for idx, (score, path) in enumerate(solution):
         agent = [tup[2] for tup in path]
-        extend = [max_extension-viable_days[idx][elem]+1
-                  for idx, elem
-                  in enumerate([tup[1] for tup in path])]
+        extend = [
+            max_extension-viable_days[idx][elem]+1
+            for idx, elem
+            in enumerate([tup[1] for tup in path])
+        ]
         schedule.append((agent, extend))
 
     if schedule:
         return schedule
     else:
-        print("Solution not found. Either extend the maximum extension or increase manpower.")
+        print(
+            'Solution not found. '
+            'Either extend the maximum extension or increase manpower.'
+        )
         return
+
+
+@st.cache_data(ttl=60*60*24)
+def get_const(file_path: str):
+    try:
+        with open(file_path, 'r') as file:
+            const_dict = loads(file.read())
+        return const_dict
+    except FileNotFoundError as err:
+        print(f'Select a valid path. {err}')
 
 
 def left_align(s, props='text-align: center;'):
