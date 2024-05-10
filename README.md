@@ -3,7 +3,7 @@
 ## Overview
 ### Problem Statement
 Given concurrent surveys, with different due dates and CR requirements, how do we distribute call agent in order to minimize the total number of extension days required.
-This can be formulated as a Multiple Choice Knapsack Problem (src)[https://www.sciencedirect.com/science/article/abs/pii/S014971890900041X]
+This can be formulated as a Multiple Choice Knapsack Problem [src](https://www.sciencedirect.com/science/article/abs/pii/S014971890900041X)
 
 ## Explanation
 The code implements the a modified version of [this](https://stackoverflow.com/questions/74503207/knapsack-with-specific-amount-of-items-from-different-groups) stackoverflow answer.
