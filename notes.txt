@@ -1,0 +1,121 @@
+For the Multiple-Choice Knapsack Problem (MCKP) formulation of the call agent optmization,
+consider the extension day amount as the value and weight/cost is the number of call agents.
+
+Remember to check for LP dominated as well as dominated extensions.
+
+file:///C:/Users/WorkAccount/Desktop/Work%20Files/Code/Current/zhong2010.pdf
+
+TODO
+
+Split streamlit.py code into 2 files:
+1) UI/frontend code (keep in streamlit.py)
+2) backend code (move to utils.py for caching)
+
+
+Defining Domination
+let:
+    l,m be items from the same class N_i
+    {
+        satisfying:
+            w_il <= w_im
+            p_il >= p_im
+    }
+
+then:
+    `item l` dominates `item m`
+
+This means that `item l` has a higher value and a lower weight/cost than `item m`
+
+Understanding LP Domination
+
+let:
+    l,m,n be items from the same class N_i
+    {
+        with:
+            w_il < w_im < w_in
+            p_il < p_im < p_in
+        {
+            satisfying:
+                (p_in - p_im) / (w_in - w_im) > (p_im - p_il) / (w_im - w_il)
+        }
+    }
+
+then:
+    `item m` is LP-dominated by `item l` and `item n`
+
+(p_in - p_im) = the difference in value between `item n` and `item m`
+(p_im - p_il) = the difference in value between `item m` and `item l`
+
+(w_in - w_im) = the difference in value between `item n` and `item m`
+(w_im - w_il) = the difference in value between `item m` and `item l`
+
+(p_in - p_im) / (w_in - w_im) = the change in weight/cost per unit change in value for `item n` and `item m`
+(p_im - p_il) / (w_im - w_il) = the change in weight/cost per unit change in value for `item m` and `item l`
+
+the gain in weight/cost of `item n` over `item m` relative to the increase in value of `item n` over `item m`
+is larger than
+the gain in weight/cost of `item m` over `item l` relative to the increase in value of `item m` over `item l`
+
+Note:
+LP-domination is somehow related to convexity
+For this problem, due to the way `p` is defined [ceil(cr_total / (cr_rate * (days + extension)))]
+and `w` is defined [extension], the scatter plot of possible solutions is already almost convex.
+
+The graph is essentially the integral part of a reciprocal function.
+The simplest method to ensure convexity is to take the first instance of `p` and it's associated `w`
+and discard all other subsequent identical values of `p` (and their associated weights). 
+
+======================================================================
+
+For the Multiple-Choice Knapsack Problem (MCKP) formulation of the call agent optmization,
+consider the value to be the total number of days to complete all surveys
+and weight/cost is the number of call agents.
+
+DEFINITIONS/JUSTIFICATIONS
+ - if the value is set to be the total CR/day (REJECTED)
+  = this will result in the algorithm allocating agents to surveys that have a high CR/day/agent
+    values
+  = this results in 'easy' surveys (surveys with a high CR/day/agent) being rushed to make way
+    for 'harder' surveys
+  = the end result is that the algorithm will pick the survey with the highest CR/day/agent
+    and dump all agent into that survey
+
+ - define the value to be the number of days for a survey to be completed (ACCEPTED)
+  = if we try to minimize this sum this will result in the algorithm prioritizing surveys that
+    have a high required CR
+  = this will result is 'long' surveys (high remaining CR) will be rushed and 'short' surveys
+    will be neglected
+  = however, the algorithm cannot completely neglect the short surveys, since a one day extension
+    on a 'short' survey is equal in
+    value to a one day extension for a 'long' survey
+   > it is worth it to extend a long survey by one day if it results in a short survey being rushed
+     in at least 2 days
+  = there exists inflection plateaus where extending one survey by a number days results in rushing
+    another survey by an equal number of days 
+  = alternatively, we could choose to maximize the difference between 180 and the number of days taken
+    complete the survey
+
+
+ - define the weight to be the number of call agents
+
+ - define the capacity to be the total number of call agents available
+
+ASSUMPTIONS
+ - all surveys are concurrent
+ - some surveys can be neglected (for 0-1 compatibility)
+ - the capacity is strictly smaller than the sum of the largest weights for each survey
+ - the objective is to minimize the value subject to the weight constraints
+
+OBSERVATIONS
+ - the number of days is exactly equal to ceil(`total_cr` / (`cr_rate_per_agent_per_day` * `agents`))
+  = use the ceiling function to ensure integer values
+  = hence the number of days to complete a survey is inversely proportional to the number of agents
+
+ - the use of the ceiling function introduces a number of `dominated` entries into each `item_group`
+  = e.g. let `total_cr` = 500, `cr_rate` = 8, then the number of days is the same if we assign 14 or 15
+    agents, and obviously assigning 14 agents will be better than assigning 15 agents if there is no
+    change in the number of days
+  = these dominated assignment can be removed by discarding the assignments that result in the same
+    number of days with a higher agent count
+
+ - 
