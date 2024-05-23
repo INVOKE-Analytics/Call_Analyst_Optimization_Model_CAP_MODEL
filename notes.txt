@@ -3,7 +3,7 @@ consider the extension day amount as the value and weight/cost is the number of 
 
 Remember to check for LP dominated as well as dominated extensions.
 
-file:///C:/Users/WorkAccount/Desktop/Work%20Files/Code/Current/zhong2010.pdf
+Reference file for Multiple Choice Knapsack Problem: zhong2010.pdf
 
 TODO
 
